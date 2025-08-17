@@ -1,5 +1,7 @@
 import json
 import os
+import tkinter as tk
+from tkinter import messagebox, simpledialog
 
 
 FILENAME = "shopping_list.json"
@@ -9,13 +11,13 @@ def load_list():
     if os.path.exists(FILENAME):
         try:
             with open (FILENAME, 'r', encoding='utf-8') as f:
-                print("файл успешно загружен")
+                messagebox.showinfo("Загрузка","файл успешно загружен")
                 return json.load(f)
         except FileExistsError:
-            print("не получилось загрузить файл, поэтому создаем пустой список")
+            messagebox.showerror("ошибка!", "не получилось загрузить файл, поэтому создаем пустой список")
             return []
     else:
-        print("Файл не найден. Создаем пустой список")
+        messagebox.showinfo("Загрузка", "Файл не найден. Создаем пустой список")
         return []
 
 
@@ -23,116 +25,148 @@ def save_list(shopping_list):
     try:
         with open(FILENAME, 'w', encoding='utf-8') as file:
             json.dump(shopping_list, file, ensure_ascii=False, indent=4)
+        messagebox.showinfo("успех!", "Список успешно сохранен")
     except Exception as error:
-        print("ошибка при сохранении файла")
+        messagebox.showerror("ошибка!", "ошибка при сохранении файла")
 
 
 def show_list(shopping_list):
     if not shopping_list:
-        print("список пуст")
+        messagebox.showinfo("Пустой список", "Список покупок пуст.")
         return False
-    else:
-        print("список покупок:")
-        for number, item in enumerate(shopping_list, start=1):
-            print(f"{number}. {item['name']} (x{item['quantity']})")
-        return True
-    
+    window = tk.Toplevel()
+    window.title("Список покупок")
+    label = tk.Label(window, text="Список покупок:")
+    label.pack(pady=5)
+    listbox = tk.Listbox(window, width=50)
+    listbox.pack(padx=10, pady=5)
+    for number, item in enumerate(shopping_list, start=1):
+        listbox.insert(tk.END, f"{number}. {item['name']} (x{item['quantity']})")
+    return True
+
 
 def add_item(shopping_list):
-    name = input("Введите название товара: ")
+    name = simpledialog.askstring("Добавить товар", "Введите название товара:")
     if not name:
-        print("ошибка в названии товара")
+        messagebox.showerror("Ошибка!", "Название товара не может быть пустым.")
         return
     while True:
+        quantity_str = simpledialog.askstring("Количество", "Введите количество товара:")
+        if quantity_str is None:
+            return False
         try:
-            quantity = int(input("Введите количество: "))
+            quantity = int(quantity_str)
             if quantity <= 0:
-                print("Количество товаров должно быть больше нуля")
+                messagebox.showerror("Ошибка", "Количество должно быть больше нуля.")
                 continue
             break
         except ValueError:
-            print('это не целое число')
+            messagebox.showerror("Ошибка", "Пожалуйста, введите целое число.")
     shopping_list.append({"name": name, "quantity": quantity})
-    print(f"товар {name} в количестве {quantity} штук добавлен в ваш список")
+    messagebox.showinfo("Успех", f"Товар {name} в количестве {quantity} штук добавлен в список.")
   
 
 def remove_item(shopping_list):
     if not shopping_list:
-        print("список пуст")
+        messagebox.showinfo("Пустой список", "Список покупок пуст.")
         return False
-    else:
-        print("список покупок:")
-        for number, item in enumerate(shopping_list, start=1):
-            print(f"{number}. {item['name']} (x{item['quantity']})")
-        try:
-            index = int(input("Введите номер товара для удаления: ")) - 1
-            if index <= -1 or index >= len(shopping_list):
-                print("неккоректный номер")
-                return False
-            else:
-                remove = shopping_list.pop(index)
-                print(f"товар {remove["name"]} удален")
-                return True
-        except ValueError:
-            print("номер товара должен быть целым числом")
-            return False
+    remove_window = tk.Toplevel()
+    remove_window.title("Удалить товар")
+    listbox = tk.Listbox(remove_window, width=50, height=10)
+    for item in shopping_list:
+        listbox.insert(tk.END, f"{item['name']} (x{item['quantity']})")
+    listbox.pack(padx=10, pady=10)
+
+    def delete_selected():
+        selected_indices = listbox.curselection()
+        if not selected_indices:
+            messagebox.showerror("Ошибка!", "Пожалуйста, выберите товар для удаления.")
+            return
+        index = selected_indices[0]
+        removed_item = shopping_list.pop(index)
+        messagebox.showinfo("Удалено", f"Товар '{removed_item['name']}' удален.")
+        remove_window.destroy()
+
+    btn_delete = tk.Button(remove_window, text="Удалить выбранное", command=delete_selected)
+    btn_delete.pack(pady=5)
 
 
 def edit_item(shopping_list):
     if not shopping_list:
-        print("список пуст")
-    else:
-        print("список покупок:")
-        for number, item in enumerate(shopping_list, start=1):
-            print(f"{number}. {item['name']} (x{item['quantity']})")
-        try:
-            index = int(input("Введите номер товара для редактирования: ")) - 1
-            if index <= -1 or index >= len(shopping_list):
-                print("неккоректный номер")
-            else:
-                print(f"Название товара: {item['name']}")
-                print(f"Количество товара: {item['quantity']}")
-                new_name = input("Введите новое название (или нажмите Enter, чтобы оставить старое): ")
-                new_quantity = input("Введите новое количество (или нажмите Enter, чтобы оставить старое): ")
-                if new_name:
-                    item['name'] = new_name
-                if new_quantity:
-                    try:
-                        if int(new_quantity) > 0:
-                            item['quantity'] = int(new_quantity)
-                        else:
-                            print("Некорректное количество, оставлено старое значение.")
-                    except ValueError:
-                        print("Некорректное количество, оставлено старое значение.")
-        except ValueError:
-            print("номер товара должен быть целым числом")
-            return False
+        messagebox.showinfo("Пустой список", "Список покупок пуст.")
+        return
+    edit_window = tk.Toplevel()
+    edit_window.title("Редактировать товар")
+    listbox = tk.Listbox(edit_window, width=50, height=10)
+    for item in shopping_list:
+        listbox.insert(tk.END, f"{item['name']} (x{item['quantity']})")
+    listbox.pack(padx=10, pady=10)
+
+    def edit_selected():
+        selected_indices = listbox.curselection()
+        if not selected_indices:
+            messagebox.showerror("Ошибка!", "Пожалуйста, выберите товар для редактирования.")
+            return
+        index = selected_indices[0]
+        item = shopping_list[index]
+        new_name = simpledialog.askstring("Редактировать название", "Введите новое название товара:", initialvalue=item['name'])
+        if new_name:
+            item['name'] = new_name
+        new_quantity_str = simpledialog.askstring("Редактировать количество", "Введите новое количество товара:", initialvalue=str(item['quantity']))
+        if new_quantity_str:
+            try:
+                new_quantity = int(new_quantity_str)
+                if new_quantity > 0:
+                    item['quantity'] = new_quantity
+                else:
+                    messagebox.showerror("Ошибка!", "Количество должно быть положительным числом. Оставлено старое значение.")
+            except ValueError:
+                messagebox.showerror("Ошибка!", "Некорректное число. Количество оставлено без изменений.")
+        listbox.delete(0, tk.END)
+        for itm in shopping_list:
+            listbox.insert(tk.END, f"{itm['name']} (x{itm['quantity']})")
+        messagebox.showinfo("Успех!", "Товар успешно отредактирован.")
+
+    btn_edit = tk.Button(edit_window, text="Редактировать выбранное", command=edit_selected)
+    btn_edit.pack(pady=5)
 
 
 def main():
     shopping_list = load_list()
-    while True:
-        menu = int(input("""Меню:
-        1. сохранить список
-        2. просмотр списка
-        3. добавить товар
-        4. удалить товар
-        5. редактировать товар
-        6. Выход
-"""))
-        if menu == 1:
-            save_list(shopping_list)
-        elif menu == 2:
-            show_list(shopping_list)
-        elif menu == 3:
-            add_item(shopping_list)
-        elif menu == 4:
-            remove_item(shopping_list)
-        elif menu == 5:
-            edit_item(shopping_list)
-        else:
-            break
-        
+
+    def save():
+        save_list(shopping_list)
+
+    def view():
+        show_list(shopping_list)
+
+    def add():
+        add_item(shopping_list)
+
+    def remove():
+        remove_item(shopping_list)
+
+    def edit():
+        edit_item(shopping_list)
+
+    root = tk.Tk()
+    root.title("Меню покупок")
+
+    btn_save = tk.Button(root, text="Сохранить список", command=save)
+    btn_view = tk.Button(root, text="Просмотр списка", command=view)
+    btn_add = tk.Button(root, text="Добавить товар", command=add)
+    btn_remove = tk.Button(root, text="Удалить товар", command=remove)
+    btn_edit = tk.Button(root, text="Редактировать товар", command=edit)
+    btn_exit = tk.Button(root, text="Выход", command=root.quit)
+
+    btn_save.pack(fill='x')
+    btn_view.pack(fill='x')
+    btn_add.pack(fill='x')
+    btn_remove.pack(fill='x')
+    btn_edit.pack(fill='x')
+    btn_exit.pack(fill='x')
+
+    root.mainloop()
 
 if __name__ == "__main__":
     main()
